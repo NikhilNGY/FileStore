@@ -158,8 +158,8 @@ else:  # Fallback to text only
         text=caption,
         reply_markup=reply_markup
     )  # 🔥
-        
-        return
+
+return
 
 
 
