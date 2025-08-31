@@ -132,7 +132,7 @@ async def start_command(client: Client, message: Message):
                     [InlineKeyboardButton("• ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟs •", url="https://t.me/+fDkIGNmk5BU5ODVl")],
 
     [
-                    InlineKeyboardButton("• ɢʀᴏᴜᴘ •", = url="https://t.me/+x6OfRDdUPrUwZTZl"),
+                    InlineKeyboardButton("• ɢʀᴏᴜᴘ •", url="https://t.me/+x6OfRDdUPrUwZTZl"),
                     InlineKeyboardButton('• ʜᴇʟᴘ •', callback_data = "help")
 
     ]
