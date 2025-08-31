@@ -57,7 +57,7 @@ PROTECT_CONTENT = True if os.environ.get('PROTECT_CONTENT', "False") == "True" e
 DISABLE_CHANNEL_BUTTON = os.environ.get("DISABLE_CHANNEL_BUTTON", None) == 'True'
 #--------------------------------------------
 BOT_STATS_TEXT = "<b>BOT UPTIME</b>\n{uptime}"
-USER_REPLY_TEXT = "ʙᴀᴋᴋᴀ ! ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴍʏ ꜱᴇɴᴘᴀɪ!!"
+USER_REPLY_TEXT = "<b><blockquote>❌ Dᴏɴ'ᴛ Sᴇɴᴅ Mᴇ Mᴇꜱꜱᴀɢᴇꜱ, Sᴇɴᴅ Mᴇꜱꜱᴀɢᴇ Iɴ Gʀᴏᴜᴘ Oɴʟʏ Tᴇᴀᴍ : @KR_Picture</blockquote></b>"
 #--------------------------------------------
 
 
