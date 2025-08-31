@@ -27,13 +27,13 @@ CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1001683081282")) #Your db channe
 OWNER = os.environ.get("OWNER", "nikhil5757h") # Owner username without @
 OWNER_ID = int(os.environ.get("OWNER_ID", "2068233407")) # Owner id
 #--------------------------------------------
-PORT = os.environ.get("PORT", "8089")
+PORT = os.environ.get("PORT", "8080")
 #--------------------------------------------
-DB_URI = os.environ.get("DATABASE_URL", "")
+DB_URI = os.environ.get("DATABASE_URL", "mongodb+srv://Filter01:ei62heT4O81OyNyl@Filter01.6kyybcz.mongodb.net/?retryWrites=true&w=majority&appName=Filter01")
 DB_NAME = os.environ.get("DATABASE_NAME", "Filter1")
 #--------------------------------------------
 FSUB_LINK_EXPIRY = int(os.getenv("FSUB_LINK_EXPIRY", "10"))  # 0 means no expiry
-BAN_SUPPORT = os.environ.get("BAN_SUPPORT", "https://t.me/CodeflixSupport")
+BAN_SUPPORT = os.environ.get("BAN_SUPPORT", "https://t.me/Nikhil5757h")
 TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "200"))
 #--------------------------------------------
 START_PIC = os.environ.get("START_PIC", "https://telegra.ph/file/4466d37d43f5703516f74.jpg")
