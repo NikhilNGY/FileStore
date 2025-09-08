@@ -1,5 +1,5 @@
-#(©)CodeFlix_Bots
-#rohit_1888 on Tg #Dont remove this line
+# (©)CodeFlix_Bots
+# rohit_1888 on Tg #Dont remove this line
 
 import base64
 import re
@@ -13,15 +13,15 @@ from pyrogram.errors import FloodWait
 from database.database import *
 
 
-
-#used for cheking if a user is admin ~Owner also treated as admin level
+# Used for checking if a user is admin ~Owner also treated as admin level
 async def check_admin(filter, client, update):
     try:
-        user_id = update.from_user.id       
+        user_id = update.from_user.id
         return any([user_id == OWNER_ID, await db.admin_exist(user_id)])
     except Exception as e:
         print(f"! Exception in check_admin: {e}")
         return False
+
 
 async def is_subscribed(client, user_id):
     channel_ids = await db.show_channels()
@@ -34,10 +34,9 @@ async def is_subscribed(client, user_id):
 
     for cid in channel_ids:
         if not await is_sub(client, user_id, cid):
-            # Retry once if join request might be processing
             mode = await db.get_channel_mode(cid)
             if mode == "on":
-                await asyncio.sleep(2)  # give time for @on_chat_join_request to process
+                await asyncio.sleep(2)
                 if await is_sub(client, user_id, cid):
                     continue
             return False
@@ -49,7 +48,6 @@ async def is_sub(client, user_id, channel_id):
     try:
         member = await client.get_chat_member(channel_id, user_id)
         status = member.status
-        #print(f"[SUB] User {user_id} in {channel_id} with status {status}")
         return status in {
             ChatMemberStatus.OWNER,
             ChatMemberStatus.ADMINISTRATOR,
@@ -60,9 +58,7 @@ async def is_sub(client, user_id, channel_id):
         mode = await db.get_channel_mode(channel_id)
         if mode == "on":
             exists = await db.req_user_exist(channel_id, user_id)
-            #print(f"[REQ] User {user_id} join request for {channel_id}: {exists}")
             return exists
-        #print(f"[NOT SUB] User {user_id} not in {channel_id} and mode != on")
         return False
 
     except Exception as e:
@@ -73,21 +69,23 @@ async def is_sub(client, user_id, channel_id):
 async def encode(string):
     string_bytes = string.encode("ascii")
     base64_bytes = base64.urlsafe_b64encode(string_bytes)
-    base64_string = (base64_bytes.decode("ascii")).strip("=")
+    base64_string = base64_bytes.decode("ascii").strip("=")
     return base64_string
 
+
 async def decode(base64_string):
-    base64_string = base64_string.strip("=") # links generated before this commit will be having = sign, hence striping them to handle padding errors.
+    base64_string = base64_string.strip("=")
     base64_bytes = (base64_string + "=" * (-len(base64_string) % 4)).encode("ascii")
-    string_bytes = base64.urlsafe_b64decode(base64_bytes) 
+    string_bytes = base64.urlsafe_b64decode(base64_bytes)
     string = string_bytes.decode("ascii")
     return string
+
 
 async def get_messages(client, message_ids):
     messages = []
     total_messages = 0
     while total_messages != len(message_ids):
-        temb_ids = message_ids[total_messages:total_messages+200]
+        temb_ids = message_ids[total_messages:total_messages + 200]
         try:
             msgs = await client.get_messages(
                 chat_id=client.db_channel.id,
@@ -99,35 +97,42 @@ async def get_messages(client, message_ids):
                 chat_id=client.db_channel.id,
                 message_ids=temb_ids
             )
-        except:
-            pass
+        except Exception as e:
+            print(f"[!] Error in get_messages(): {e}")
+            msgs = []
+
         total_messages += len(temb_ids)
         messages.extend(msgs)
     return messages
 
+
 async def get_message_id(client, message):
-    if message.forward_from_chat:
-        if message.forward_from_chat.id == client.db_channel.id:
-            return message.forward_from_message_id
-        else:
-            return 0
+    if hasattr(message, 'forward_origin') and message.forward_origin:
+        forward_origin = message.forward_origin
+        if hasattr(forward_origin, 'chat') and forward_origin.chat and forward_origin.chat.id == client.db_channel.id:
+            return forward_origin.message_id
+        return 0
+
     elif message.forward_sender_name:
         return 0
+
     elif message.text:
-        pattern = "https://t.me/(?:c/)?(.*)/(\d+)"
-        matches = re.match(pattern,message.text)
+        pattern = r"https://t.me/(?:c/)?(.*)/(\d+)"
+        matches = re.match(pattern, message.text)
         if not matches:
             return 0
+
         channel_id = matches.group(1)
         msg_id = int(matches.group(2))
+
         if channel_id.isdigit():
             if f"-100{channel_id}" == str(client.db_channel.id):
                 return msg_id
         else:
             if channel_id == client.db_channel.username:
                 return msg_id
-    else:
-        return 0
+
+    return 0
 
 
 def get_readable_time(seconds: int) -> str:
@@ -158,10 +163,9 @@ def get_exp_time(seconds):
     for period_name, period_seconds in periods:
         if seconds >= period_seconds:
             period_value, seconds = divmod(seconds, period_seconds)
-            result += f'{int(period_value)} {period_name}'
-    return result
+            result += f'{int(period_value)} {period_name} '
+    return result.strip()
+
 
 subscribed = filters.create(is_subscribed)
 admin = filters.create(check_admin)
-
-#rohit_1888 on Tg :
