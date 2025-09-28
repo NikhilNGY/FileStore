@@ -16,8 +16,6 @@ CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1001683081282")) #Your db channe
 OWNER = os.environ.get("OWNER", "nikhil5757h") # Owner username without @
 OWNER_ID = int(os.environ.get("OWNER_ID", "2068233407")) # Owner id
 
-AUTO_DELETE_HOURS = int(os.getenv("AUTO_DELETE_HOURS", 4))
-
 #--------------------------------------------
 PORT = os.environ.get("PORT", "8080")
 #--------------------------------------------
