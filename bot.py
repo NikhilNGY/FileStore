@@ -4,7 +4,7 @@ from plugins import web_server
 from pyrogram import Client, filters
 from pyrogram.enums import ParseMode, ChatType
 from pyrogram.types import Message
-from datetime import datetime, timedelta
+from datetime import datetime
 import sys
 from config import *
 from pymongo import MongoClient
@@ -13,7 +13,6 @@ from pymongo import MongoClient
 MONGO_CLIENT = MongoClient(DB_URI)
 DB = MONGO_CLIENT[DB_NAME]
 USER_SETTINGS = DB["user_settings"]  # per-user auto-delete times
-DELETED_LOGS = DB["deleted_logs"]    # deleted messages logs
 
 # ---------------------- MongoDB Helpers ----------------------
 async def all_users():
@@ -40,27 +39,6 @@ async def get_user_delete_time(user_id: int, default: int = 30):
     except Exception as e:
         print(f"[Warning] Could not get delete time for {user_id}: {e}")
         return default
-
-async def log_deleted_message(user_id: int, chat_id: int, message_id: int, content_preview: str):
-    try:
-        DELETED_LOGS.insert_one({
-            "user_id": user_id,
-            "chat_id": chat_id,
-            "message_id": message_id,
-            "content_preview": content_preview,
-            "deleted_at": datetime.utcnow()
-        })
-    except Exception as e:
-        print(f"[Warning] Failed to log deleted message {message_id} for user {user_id}: {e}")
-
-async def cleanup_old_logs(days: int = 30):
-    """Delete logs older than `days`."""
-    try:
-        cutoff = datetime.utcnow() - timedelta(days=days)
-        result = DELETED_LOGS.delete_many({"deleted_at": {"$lt": cutoff}})
-        print(f"[Cleanup] Deleted {result.deleted_count} old log(s) older than {days} days.")
-    except Exception as e:
-        print(f"[Warning] Failed to cleanup old logs: {e}")
 
 # ---------------------- Bot Class ----------------------
 class Bot(Client):
@@ -101,7 +79,6 @@ class Bot(Client):
 
         # Start background tasks
         self.loop.create_task(self.monitor_private_messages())
-        self.loop.create_task(self.periodic_cleanup())
 
         # Start Web Server
         app_runner = web.AppRunner(await web_server())
@@ -167,11 +144,7 @@ class Bot(Client):
 
             await message.delete()
 
-            await log_deleted_message(
-                message.from_user.id if message.from_user else chat_id,
-                chat_id, message_id, content_preview
-            )
-
+            # Only log to LOG_CHANNEL, no DB storage
             await self.send_message(
                 self.LOG_CHANNEL,
                 f"Deleted message <b>{message_id}</b> in private chat with <b>{chat_id}</b> after {delay} seconds.\n"
@@ -199,12 +172,6 @@ class Bot(Client):
             await message.reply(f"✅ Auto-delete time set to {seconds} seconds for your private chat.")
         except Exception as e:
             await message.reply(f"❌ Failed to set delete time: {e}")
-
-    # ---------------------- Cleanup Task ----------------------
-    async def periodic_cleanup(self):
-        while True:
-            await cleanup_old_logs(days=30)
-            await asyncio.sleep(24 * 3600)
 
     # ---------------------- Stop & Run ----------------------
     async def stop(self, *args):
