@@ -1,14 +1,3 @@
-# Don't Remove Credit @CodeFlix_Bots, @rohit_1888
-# Ask Doubt on telegram @CodeflixSupport
-#
-# Copyright (C) 2025 by Codeflix-Bots@Github, < https://github.com/Codeflix-Bots >.
-#
-# This file is part of < https://github.com/Codeflix-Bots/FileStore > project,
-# and is released under the MIT License.
-# Please see < https://github.com/Codeflix-Bots/FileStore/blob/master/LICENSE >
-#
-# All rights reserved.
-#
 
 import os
 from os import environ,getenv
@@ -26,6 +15,9 @@ API_HASH = os.environ.get("API_HASH", "4906b3f8f198ec0e24edb2c197677678") #Your 
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1001683081282")) #Your db channel Id
 OWNER = os.environ.get("OWNER", "nikhil5757h") # Owner username without @
 OWNER_ID = int(os.environ.get("OWNER_ID", "2068233407")) # Owner id
+
+AUTO_DELETE_HOURS = int(os.getenv("AUTO_DELETE_HOURS", 4))
+
 #--------------------------------------------
 PORT = os.environ.get("PORT", "8080")
 #--------------------------------------------
