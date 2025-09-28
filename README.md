@@ -65,7 +65,8 @@
 /users - view bot statistics  
 /broadcast - broadcast any messages to bot users  
 /dbroadcast - broadcast any messages with auto delete  
-/stats - check your bot uptime  
+/stats - check your bot uptime
+/set_delete - set auto delete for users pm message 
 /dlt_time - set auto delete time for files  
 /check_dlt_time - check current delete time setting  
 /ban - ban a user from using the bot  
