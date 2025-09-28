@@ -4,7 +4,7 @@ from plugins import web_server
 from pyrogram import Client, filters
 from pyrogram.enums import ParseMode, ChatType
 from pyrogram.types import Message
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
 from config import *
 from pymongo import MongoClient
@@ -12,20 +12,55 @@ from pymongo import MongoClient
 # ---------------------- MongoDB Setup ----------------------
 MONGO_CLIENT = MongoClient(DB_URI)
 DB = MONGO_CLIENT[DB_NAME]
-USER_SETTINGS = DB["user_settings"]  # Store per-user delete time
+USER_SETTINGS = DB["user_settings"]  # per-user auto-delete times
+DELETED_LOGS = DB["deleted_logs"]    # deleted messages logs
+
+# ---------------------- MongoDB Helpers ----------------------
+async def all_users():
+    try:
+        return [doc["user_id"] for doc in USER_SETTINGS.find({}, {"user_id": 1, "_id": 0})]
+    except Exception as e:
+        print(f"[Warning] Could not fetch users: {e}")
+        return []
 
 async def set_user_delete_time(user_id: int, seconds: int):
-    """Set auto-delete time for a user in MongoDB."""
-    USER_SETTINGS.update_one(
-        {"user_id": user_id},
-        {"$set": {"delete_seconds": seconds}},
-        upsert=True
-    )
+    try:
+        USER_SETTINGS.update_one(
+            {"user_id": user_id},
+            {"$set": {"delete_seconds": seconds}},
+            upsert=True
+        )
+    except Exception as e:
+        print(f"[Error] Failed to set delete time for {user_id}: {e}")
 
-async def get_user_delete_time(user_id: int):
-    """Get auto-delete time for a user from MongoDB."""
-    doc = USER_SETTINGS.find_one({"user_id": user_id})
-    return doc.get("delete_seconds") if doc else None
+async def get_user_delete_time(user_id: int, default: int = 30):
+    try:
+        doc = USER_SETTINGS.find_one({"user_id": user_id}, {"delete_seconds": 1, "_id": 0})
+        return doc.get("delete_seconds", default) if doc else default
+    except Exception as e:
+        print(f"[Warning] Could not get delete time for {user_id}: {e}")
+        return default
+
+async def log_deleted_message(user_id: int, chat_id: int, message_id: int, content_preview: str):
+    try:
+        DELETED_LOGS.insert_one({
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "content_preview": content_preview,
+            "deleted_at": datetime.utcnow()
+        })
+    except Exception as e:
+        print(f"[Warning] Failed to log deleted message {message_id} for user {user_id}: {e}")
+
+async def cleanup_old_logs(days: int = 30):
+    """Delete logs older than `days`."""
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        result = DELETED_LOGS.delete_many({"deleted_at": {"$lt": cutoff}})
+        print(f"[Cleanup] Deleted {result.deleted_count} old log(s) older than {days} days.")
+    except Exception as e:
+        print(f"[Warning] Failed to cleanup old logs: {e}")
 
 # ---------------------- Bot Class ----------------------
 class Bot(Client):
@@ -39,20 +74,20 @@ class Bot(Client):
             bot_token=TG_BOT_TOKEN
         )
         self.LOGGER = LOGGER
-        self.last_checked_message = {}  # Stores last processed message_id per chat
+        self.last_checked_message = {}
 
-    # ---------------------- Start Bot ----------------------
+    # ---------------------- Start ----------------------
     async def start(self):
         await super().start()
         me = await self.get_me()
         self.uptime = datetime.now()
         self.username = me.username
 
-        # Check LOG_CHANNEL
+        # LOG_CHANNEL check
         try:
             db_chat = await self.get_chat(LOG_CHANNEL)
             self.LOG_CHANNEL = db_chat.id
-            test = await self.send_message(chat_id=db_chat.id, text="Test Message")
+            test = await self.send_message(chat_id=db_chat.id, text="✅ Bot Started Successfully")
             await test.delete()
         except Exception as e:
             self.LOGGER(__name__).warning(e)
@@ -64,8 +99,9 @@ class Bot(Client):
         self.set_parse_mode(ParseMode.HTML)
         self.LOGGER(__name__).info(f"Bot Running..! Made by @KR_Picture")   
 
-        # Start background message monitor
+        # Start background tasks
         self.loop.create_task(self.monitor_private_messages())
+        self.loop.create_task(self.periodic_cleanup())
 
         # Start Web Server
         app_runner = web.AppRunner(await web_server())
@@ -74,44 +110,39 @@ class Bot(Client):
 
     # ---------------------- Monitor Private Messages ----------------------
     async def monitor_private_messages(self):
-        """Monitor private chats with users for auto-delete."""
         while True:
             try:
-                chat_ids = []
                 try:
-                    chat_ids.extend([u.id for u in await all_users()])
+                    chat_ids = await all_users()
                 except Exception as e:
                     self.LOGGER(__name__).warning(f"Could not fetch users: {e}")
+                    chat_ids = []
 
                 for chat_id in set(chat_ids):
                     last_msg_id = self.last_checked_message.get(chat_id, 0)
-                    delete_seconds = await get_user_delete_time(chat_id) or 30  # default 30s
+                    delete_seconds = await get_user_delete_time(chat_id) or 30
 
-                    async for message in self.get_chat_history(chat_id, limit=1000, reverse=True):
-                        if message.message_id <= last_msg_id:
-                            break
-
-                        # Only private chats
-                        if message.chat.type != ChatType.PRIVATE:
-                            continue
-
-                        # Skip bot's own messages
-                        if message.from_user and message.from_user.id == self.me.id:
-                            continue
-
-                        # Only delete relevant messages
-                        if message.text or message.audio or message.video or message.document or message.photo:
-                            asyncio.create_task(
-                                self.delete_message_after(chat_id, message.message_id, delete_seconds)
+                    try:
+                        async for message in self.get_chat_history(chat_id, limit=1000, reverse=True):
+                            if message.message_id <= last_msg_id:
+                                break
+                            if message.chat.type != ChatType.PRIVATE:
+                                continue
+                            if message.from_user and message.from_user.id == self.me.id:
+                                continue
+                            if message.text or message.audio or message.video or message.document or message.photo:
+                                asyncio.create_task(
+                                    self.delete_message_after(chat_id, message.message_id, delete_seconds)
+                                )
+                            self.last_checked_message[chat_id] = max(
+                                self.last_checked_message.get(chat_id, 0),
+                                message.message_id
                             )
+                    except Exception as e:
+                        self.LOGGER(__name__).warning(f"Failed to process chat {chat_id}: {e}")
 
-                        # Update last processed
-                        self.last_checked_message[chat_id] = max(
-                            self.last_checked_message.get(chat_id, 0),
-                            message.message_id
-                        )
+                await asyncio.sleep(10)
 
-                await asyncio.sleep(10)  # Check every 10 seconds
             except Exception as e:
                 self.LOGGER(__name__).warning(f"Monitor loop error: {e}")
                 await asyncio.sleep(10)
@@ -124,7 +155,7 @@ class Bot(Client):
 
             content_preview = ""
             if message.text:
-                content_preview = message.text[:500]  # Limit text preview
+                content_preview = message.text[:500]
             elif message.document:
                 content_preview = f"Document: {message.document.file_name}"
             elif message.audio:
@@ -136,16 +167,21 @@ class Bot(Client):
 
             await message.delete()
 
-            # Log deleted message content to LOG_CHANNEL
+            await log_deleted_message(
+                message.from_user.id if message.from_user else chat_id,
+                chat_id, message_id, content_preview
+            )
+
             await self.send_message(
                 self.LOG_CHANNEL,
                 f"Deleted message <b>{message_id}</b> in private chat with <b>{chat_id}</b> after {delay} seconds.\n"
                 f"Content: <code>{content_preview}</code>"
             )
+
         except Exception as e:
             self.LOGGER(__name__).warning(f"Failed to delete msg {message_id} in {chat_id}: {e}")
 
-    # ---------------------- Command: /set_delete ----------------------
+    # ---------------------- /set_delete Command ----------------------
     @Client.on_message(filters.private & filters.command("set_delete") & filters.user(OWNER_ID))
     async def set_delete_time_cmd(self, bot: Client, message: Message):
         try:
@@ -163,6 +199,12 @@ class Bot(Client):
             await message.reply(f"✅ Auto-delete time set to {seconds} seconds for your private chat.")
         except Exception as e:
             await message.reply(f"❌ Failed to set delete time: {e}")
+
+    # ---------------------- Cleanup Task ----------------------
+    async def periodic_cleanup(self):
+        while True:
+            await cleanup_old_logs(days=30)
+            await asyncio.sleep(24 * 3600)
 
     # ---------------------- Stop & Run ----------------------
     async def stop(self, *args):
