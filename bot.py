@@ -10,7 +10,7 @@ from config import *
 from pymongo import MongoClient
 
 # ---------------------- MongoDB Setup ----------------------
-MONGO_CLIENT = MongoClient(MONGO_URI)
+MONGO_CLIENT = MongoClient(DB_URI)
 DB = MONGO_CLIENT[DB_NAME]
 USER_SETTINGS = DB["user_settings"]  # Store per-user delete time
 
