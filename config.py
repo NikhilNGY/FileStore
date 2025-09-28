@@ -29,7 +29,8 @@ TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "200"))
 START_PIC = os.environ.get("START_PIC", "https://telegra.ph/file/4466d37d43f5703516f74.jpg")
 FORCE_PIC = os.environ.get("FORCE_PIC", "https://envs.sh/bBD.jpg")
 #--------------------------------------------
-
+LOG_CHANNEL = -1001693006436  # Channel ID to log deleted messages
+AUTO_DELETE_DEFAULT = 300  # Default auto-delete time in seconds
 #--------------------------------------------
 HELP_TXT = "<b><blockquote>Aɴʏ Iꜱꜱᴜᴇꜱ Mᴏᴠɪᴇ Fɪʟᴇꜱ Cᴏɴᴛᴀᴄᴛ Oᴡɴᴇʀ\n      \n🍁 Oᴡɴᴇʀ: <a href=https://t.me/Nikhil5757h> Ｄ Ｉ Ｃ Ｔ Ａ ＴＯ Ｒ</a></blockquote></b>"
 ABOUT_TXT = "<b><blockquote>Aɴʏ Iꜱꜱᴜᴇꜱ Mᴏᴠɪᴇ Fɪʟᴇꜱ Cᴏɴᴛᴀᴄᴛ Oᴡɴᴇʀ\n      \n🍁 Oᴡɴᴇʀ: <a href=https://t.me/Nikhil5757h> D Ｉ Ｃ Ｔ Ａ Ｔ Ｏ Ｒ</a></blockquote></b>"
